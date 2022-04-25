@@ -586,6 +586,30 @@ endif
 	override CPPFLAGS += -DUSE_LAPACK
 endif
 
+ifeq "$(USE_SMARTSIM)" "true"
+ifndef SMARTREDIS
+$(error SMARTREDIS is not set.  Please set SMARTREDIS to the SMARTREDIS install directory when USE_SMARTSIM=true)
+endif
+ifneq (, $(shell ls $(SMARTREDIS)/lib/libhiredis.*))
+	LIBS += -L$(SMARTREDIS)/lib
+else
+$(error libhiredis.* does NOT exist in $(SMARTREDIS)/lib)
+endif
+ifneq (, $(shell ls $(SMARTREDIS)/lib/libredis++.*))
+	LIBS += -L$(SMARTREDIS)/lib
+else
+$(error libredis++.* does NOT exist in $(SMARTREDIS)/lib)
+endif
+ifneq (, $(shell ls $(SMARTREDIS)/lib/libsmartredis.*))
+	LIBS += -L$(SMARTREDIS)/lib
+else
+$(error libsmartredis.* does NOT exist in $(SMARTREDIS)/lib)
+endif
+	LIBS += -lhiredis.a
+	LIBS += -lredis++.a
+	LIBS += -lsmartredis.so
+endif
+
 RM = rm -f
 CPP = cpp -P -traditional
 RANLIB = ranlib
