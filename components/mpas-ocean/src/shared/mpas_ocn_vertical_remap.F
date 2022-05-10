@@ -144,29 +144,25 @@ module ocn_vertical_remap
       call ocn_vert_regrid(restingThickness, layerThickness, &
                            layerThicknessNew, err)
 
-      ! There's currently a silly issue in PPR: it assumes the "coordinates" for
-      ! the data being remapped increases with index. Here, we have the opposite
-      ! (z becomes more -ve with k)...
-      ! I'll make some updates to PPR to handle this, but for now, just flip the
-      ! signs to make PPR happy. This shouldn't have any actual impact.
+      ! Compute layer interfaces from layer thicknesses
 
       !$omp parallel
       !$omp do schedule(runtime) private(k)
       do iCell = 1, nCells
-         heightCellNow(:, iCell) = bottomDepth(iCell)
-         heightCellNew(:, iCell) = bottomDepth(iCell)
+         heightCellNow(:, iCell) = -1.0_RKIND * bottomDepth(iCell)
+         heightCellNew(:, iCell) = -1.0_RKIND * bottomDepth(iCell)
 
          ! reconstruct "now" heights
          do k = maxLevelCell(iCell), minLevelCell(iCell), -1
             heightCellNow(k, iCell) = &
-               heightCellNow(k + 1, iCell) - layerThickness(k, iCell)
+               heightCellNow(k + 1, iCell) + layerThickness(k, iCell)
          end do
 
          ! reconstruct "new" heights
          heightCellNew(minLevelCell(iCell), iCell) = heightCellNow(minLevelCell(iCell), iCell)
          do k = maxLevelCell(iCell), minLevelCell(iCell)+1, -1
             heightCellNew(k, iCell) = &
-               heightCellNew(k + 1, iCell) - layerThicknessNew(k, iCell)
+               heightCellNew(k + 1, iCell) + layerThicknessNew(k, iCell)
          end do
       end do
       !$omp end do
@@ -228,8 +224,8 @@ module ocn_vertical_remap
          endif
 
          do k = kBot, kTop, -1
-            heightEdgeNow(k, iEdge) = heightEdgeNow(k+1, iEdge) - layerThickEdgeMean(k, iEdge)
-            heightEdgeNew(k, iEdge) = heightEdgeNew(k+1, iEdge) - layerThickEdgeNew(k, iEdge)
+            heightEdgeNow(k, iEdge) = heightEdgeNow(k+1, iEdge) + layerThickEdgeMean(k, iEdge)
+            heightEdgeNew(k, iEdge) = heightEdgeNew(k+1, iEdge) + layerThickEdgeNew(k, iEdge)
          end do
 
       end do
