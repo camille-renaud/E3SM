@@ -3656,7 +3656,6 @@ module mpas_io_streams
                   end do
                else
                   if (field_cursor % real2dField % isVarArray) then
-                     !TODO if ( field % missingValueMask1d .ne. null() )
                      real1d_temp(:) = field_cursor % real2dField % array(j,:)
                   else
                      real2d_temp(:,:) = field_cursor % real2dField % array(:,:)
@@ -3713,8 +3712,22 @@ module mpas_io_streams
                      end if
 
                      if (field_cursor % real3dField % isVarArray) then
+                        !TODO
+                        !if ( field_3dreal_ptr % missingValueMask1d .ne. null() ) then
+                        !   call mpas_mask_field2d_mask1d_real(field_3dreal_ptr, )
+                        ! need a way of specifying j for var arrays
                         real2d_temp(:,i:i+ownedSize-1) = field_3dreal_ptr % array(j,:,1:ownedSize)
                      else
+                        !TODO
+                        !if ( field_3dreal_ptr % missingValueMask1d .ne. null() ) then
+                        !   call mpas_log_write('masking 3d array with 1d array not yet supported')
+                        !   call mpas_mask_field3d_mask1d_real(field_3dreal_ptr, field_3dreal_ptr % missingValueMask1d, real3d_temp)
+                        !elif ( field_3dreal_ptr % missingValueMask2d .ne. null() ) then
+                        !   call mpas_log_write('masking 3d array with 2d array not yet supported')
+                        !   call mpas_mask_field3d_mask2d_real(field_3dreal_ptr, field_3dreal_ptr % missingValueMask2d, real3d_temp)
+                        !elif ( field_3dreal_ptr % missingValueMask3d .ne. null() ) then
+                        !   call mpas_mask_field3d_mask3d_real(field_3dreal_ptr, field_3dreal_ptr % missingValueMask2d, real3d_temp)
+                        !endif
                         real3d_temp(:,:,i:i+ownedSize-1) = field_3dreal_ptr % array(:,:,1:ownedSize)
                      end if
                      i = i + ownedSize
