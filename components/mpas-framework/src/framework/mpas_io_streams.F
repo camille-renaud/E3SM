@@ -2454,8 +2454,8 @@ module mpas_io_streams
       integer, dimension(:,:,:), pointer :: int3d_temp
       real (kind=RKIND)                            :: real0d_temp
       real (kind=RKIND), dimension(:),     pointer :: real1d_temp
-      real (kind=RKIND), dimension(:,:),   pointer :: real2d_temp
-      real (kind=RKIND), dimension(:,:,:), pointer :: real3d_temp
+      real (kind=RKIND), dimension(:,:),   allocatable :: real2d_temp
+      real (kind=RKIND), dimension(:,:,:), allocatable :: real3d_temp
       real (kind=RKIND), dimension(:,:,:,:), pointer :: real4d_temp
       real (kind=RKIND), dimension(:,:,:,:,:), pointer :: real5d_temp
 
@@ -2847,7 +2847,7 @@ module mpas_io_streams
 
          else if (field_cursor % field_type == FIELD_2D_REAL) then
 
-!call mpas_log_write('DEBUGGING : *************** '//trim(field_cursor % real2dField % fieldName))
+            STREAM_DEBUG_WRITE('DEBUGGING : *************** '//trim(field_cursor % real2dField % fieldName))
             if (field_cursor % real2dField % isVarArray) then
                ncons = size(field_cursor % real2dField % constituentNames)
                allocate(real1d_temp(field_cursor % totalDimSize))
@@ -2927,10 +2927,10 @@ module mpas_io_streams
 
          else if (field_cursor % field_type == FIELD_3D_REAL) then
 
-!call mpas_log_write('DEBUGGING : *************** '//trim(field_cursor % real3dField % fieldName))
-!call mpas_log_write('DEBUGGING : reading a 3d real array')
+            STREAM_DEBUG_WRITE('DEBUGGING : *************** '//trim(field_cursor % real3dField % fieldName))
+            STREAM_DEBUG_WRITE('DEBUGGING : reading a 3d real array')
             if (field_cursor % real3dField % isVarArray) then
-!call mpas_log_write('DEBUGGING : reading a 3d real var-array')
+               STREAM_DEBUG_WRITE('DEBUGGING : reading a 3d real var-array')
                ncons = size(field_cursor % real3dField % constituentNames)
                allocate(real2d_temp(field_cursor % real3dField % dimSizes(2), &
                                     field_cursor % totalDimSize))
@@ -2976,7 +2976,7 @@ module mpas_io_streams
                      end if
 
                      if (field_cursor % real3dField % isVarArray) then
-!call mpas_log_write('DEBUGGING : copying the temporary array')
+                        STREAM_DEBUG_WRITE('DEBUGGING : copying the temporary array')
                         field_3dreal_ptr % array(j,:,1:ownedSize) = real2d_temp(:,i:i+ownedSize-1)
                      else
                         field_3dreal_ptr % array(:,:,1:ownedSize) = real3d_temp(:,:,i:i+ownedSize-1)
@@ -3012,10 +3012,10 @@ module mpas_io_streams
             end if
          else if (field_cursor % field_type == FIELD_4D_REAL) then
 
-!call mpas_log_write('DEBUGGING : *************** '//trim(field_cursor % real3dField % fieldName))
-!call mpas_log_write('DEBUGGING : reading a 4d real array')
+            STREAM_DEBUG_WRITE('DEBUGGING : *************** '//trim(field_cursor % real3dField % fieldName))
+            STREAM_DEBUG_WRITE('DEBUGGING : reading a 4d real array')
             if (field_cursor % real4dField % isVarArray) then
-!call mpas_log_write('DEBUGGING : reading a 4d real var-array')
+               STREAM_DEBUG_WRITE('DEBUGGING : reading a 4d real var-array')
                ncons = size(field_cursor % real4dField % constituentNames)
                allocate(real3d_temp(field_cursor % real4dField % dimSizes(2), &
                                     field_cursor % real4dField % dimSizes(3), &
@@ -3031,7 +3031,7 @@ module mpas_io_streams
             do j=1,ncons
                if (field_cursor % real4dField % isVarArray) then
                   if (.not. field_cursor % isAvailable(j)) cycle
-!call mpas_log_write('DEBUGGING : calling get_var for a constitutent')
+                  STREAM_DEBUG_WRITE('DEBUGGING : calling get_var for a constitutent')
                   call MPAS_io_get_var(stream % fileHandle, field_cursor % real4dField % constituentNames(j), real3d_temp, io_err)
                else
                   call MPAS_io_get_var(stream % fileHandle, field_cursor % real4dField % fieldName, real4d_temp, io_err)
@@ -3063,7 +3063,7 @@ module mpas_io_streams
                      end if
 
                      if (field_cursor % real4dField % isVarArray) then
-!call mpas_log_write('DEBUGGING : copying the temporary array')
+                        STREAM_DEBUG_WRITE('DEBUGGING : copying the temporary array')
                         field_4dreal_ptr % array(j, :,:,1:ownedSize) = real3d_temp(:,:,i:i+ownedSize-1)
                      else
                         field_4dreal_ptr % array(:,:,:,1:ownedSize) = real4d_temp(:,:,:,i:i+ownedSize-1)
@@ -3656,6 +3656,7 @@ module mpas_io_streams
                   end do
                else
                   if (field_cursor % real2dField % isVarArray) then
+                     !TODO if ( field % missingValueMask1d .ne. null() )
                      real1d_temp(:) = field_cursor % real2dField % array(j,:)
                   else
                      real2d_temp(:,:) = field_cursor % real2dField % array(:,:)
