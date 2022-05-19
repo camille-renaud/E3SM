@@ -574,6 +574,12 @@ module mpas_bootstrapping
       call mpas_log_write(' ')
       call mpas_log_write(' ')
 
+      ! TODO Point missingValueMask to the requested field for each field variable
+      !do
+      !   maskName = field % missing_value_mask
+      !   ! get mask field from pool
+      !   call mpas_mask_assign_pointer(field, mask)
+      !enddo
       call mpas_pool_set_error_level(err_level)
 
       ! Allocate blocks, and copy indexTo arrays into blocks
