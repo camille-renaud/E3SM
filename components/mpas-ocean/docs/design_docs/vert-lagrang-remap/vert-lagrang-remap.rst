@@ -3,8 +3,9 @@ Vertical Lagrangian-remap method
 ================================
 
 date: 2020/12/21
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
 
 
@@ -26,9 +27,7 @@ Generalization of the vertical coordinate is not in the scope of this developmen
 Additionally, the infrastructure for specifying a target grid that differs from 
 the existing z-star and z-tilde options is reserved for future development.
 The minimum criteria for success are not degrading the accuracy of the solution 
-or the performance by more than [an acceptable threshold] for several basic test 
-cases. 
-*[not quite sure how to write the success statement if not "meets requirements"]*
+or computational performance. 
 
 
 Requirements
@@ -37,9 +36,9 @@ Requirements
 Requirement: Ability to perform vertical Lagrangian-remapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/04
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
 The core of the proposed development is the ability to perform vertical 
 Lagrangian-remapping (VLR). When VLR is performed, the momentum, volume and 
@@ -54,9 +53,9 @@ by a conservative remapping of velocity and scalars to the target grid.
 Requirement: Grid is sufficiently conditioned for accuracy and stability
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/04
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
 A severely deformed grid can lead to issues with the accuracy and stability of 
 the numerical methods used for the dynamics and thermodynamics. If layers are 
@@ -67,9 +66,9 @@ safeguards to prevent layers from becoming too thin or deformed.
 Requirement: Ability to specify remapping method and its options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/04
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
 There are several choices to make for the remapping operation to balance accuracy, 
 stability and computational cost. To the extent that it is feasible, the user 
@@ -79,9 +78,9 @@ should have the ability to control the order of accuracy of the remapping method
 Requirement: Support for existing time stepping schemes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/04
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
 Vertical Lagrangian remapping should be supported (eventually) in both the RK4 
 and the split-explicit time stepping schemes currently implemented in MPAS-Ocean.
@@ -91,9 +90,9 @@ to new time stepping schemes.
 Requirement: not climate changing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
 For the same target grid, time-stepping scheme and problem, the solution for 
 layer thicknesses and key prognostic variables using VLR is within a non-
@@ -130,13 +129,13 @@ operation.
 Requirement: no interference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/04
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
-No calculations are made outside of remapping itself using prognostic (or 
-diagnostic) variables both before and after remapping to avoid introducing 
-additional errors.
+Remapping does not introduce errors in the computation of prognostic and
+diagnostic variables, such as through the use of an Eulerian vertical velocity
+that is not consistent with the Lagrangian solution.
 
 Requirement: modularity
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -283,32 +282,23 @@ Implementation
 Implementation: Ability to perform vertical Lagrangian-remapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
 Namelist options:
 
 - To turn VLR on/off: 
-  :code:`ALE_vertical_grid, config_vert_lagrangian_remap = .true. or .false.`
-- *Something related to target grid, for now just z_initial*
+  :code:`advection, config_vert_advection_method = 'remap' or 'flux-form'`
 
-Namelist options specific to PPR are discussed later.
 
 Lagrangian step:
 
 The solution for prognostic variables in RK4 and split-explicit remains
 largely the same. The main difference is that the vertical velocity through 
 the top of layers is set to zero in the routine 
-:code:`ocn_vert_transport_velocity_top`. This is similar to what is done when 
-:code:`config_vert_coord_movement` is :code:`impermeable_interfaces`, except 
-rather than exit the routine, we proceed with computations needed for the z-star and
-z-tilde coordinate choices.
-
-*Other modifications to ocn_vert_transport_velocity_top are not yet determined.*
-We will likely need to bypass the :code:`ocn_ALE_thickness` call in 
-:code:`ocn_vert_transport_velocity_top` so that the adjustments of layer 
-thickness for SSH perturbations occur during the regridding step.
+:code:`ocn_vert_transport_velocity_top`. This is the same as what is done when 
+:code:`config_vert_coord_movement` is :code:`impermeable_interfaces`.
 
 
 Grid selection step:
@@ -322,49 +312,44 @@ Grid selection step:
 #. Superimpose SSH perturbations according to one of the existing depth-
    dependent functions, :math:`z_k^{target} = z_k^{target} + c(z) \: \eta`. As in 
    :code:`ocn_ALE_thickness`, layer thicknesses are adjusted from the seafloor 
-   upwards. Ideally, there is a single function that is used for both ALE
-   implementations, with and without VLR.
-#. Apply conditioning steps outlined in the following section.
-#. In preparation for remapping, compute :code:`layerThicknessTarget` from 
-   :math:`z_k^{target}`.
+   upwards. Currently :code:`layerThicknessTarget` is computed in a new routine
+   :code:`ocn_vert_regrid` following other instances in which a z-star grid is
+   recomputed.
+#. Apply conditioning steps outlined in the following section. (Not
+   implemented until coordinates other than z-star are implemented.)
+#. In preparation for remapping, compute :math:`z_k^{target}` from 
+   :code:`layerThicknessTarget`.
 
-All of the grid selection steps will be performed from a separate module.
-This topic is further addressed in section Implementation: modularity.
+All of the grid selection steps will be performed from a separate module called
+:code:`ocn_vert_regrid`. This topic is further addressed in section
+Implementation: modularity.
 
 
 Remapping step:
 
-This is stored in 
-:code:`layerThickness(tlev=2)`. The scratch variables 
-:code:`layerThicknessTarget`
-
-There is a new remapping routine with arguments:
-
-- Input: :code:`layerThicknessTarget`, which has been determined by the grid 
-  selection module
-- Input, updated: :code:`layerThickness(tlev=2)`. On input, it reflects the 
-  Lagrangian layer thickness determined by :code:`ocn_tend_thick` is called. On
-  output, it is equal to `layerThicknessTarget`. Note that :code:`layerThicknessEdge`
-  is updated later when :code:`ocn_diagnostic_solve` is called.
-- Input, updated: :code:`statePool`
-- Input, updated: All members of :code:`tracerPool` unless 
-  :code:`activeTracersOnly`, in which case only the :code:`activeTracers`
-- Remapping options
+There is a new remapping routine :code:`ocn_remap_vert_state` which updates
+all state variables with depth coordinates at :code:`timeLevel=2`. On input,
+:code:`layerThickness(tlev=2)` reflects the Lagrangian layer thickness
+determined by :code:`ocn_tend_thick`. On output, it is equal to
+:code:`layerThicknessNew` as determined by the regridding routine
+:code:`ocn_vert_regrid`.
 
 Members of :code:`statePool` that will be remapped:
 
+- All members of :code:`tracerPool` unless :code:`activeTracersOnly`, in which
+  case only the :code:`activeTracers` will be remapped
 - :code:`normalVelocity`
 - :code:`highFreqThickness`
 - :code:`lowFreqDivergence`
 - :code:`normalBarotropicVelocity`, only for split-explicit time-stepping
 
 In preparation for remapping, we compute the scratch variables 
-:code:`layerThicknessEdgeTarget` from :code:`layerThicknessTarget` and 
-:code:`layerThicknessEdgeOld` from :code:`layerThickness(tlev=2)` as the 
-average of neighboring cells. We do these locally rather than through a call to 
-:code:`ocn_diagnostic_solve_layerThicknessEdge`. This may introduce 
-inconsistencies in horizontal momentum fluxes if 
-:code:`config_thickness_flux_type` is not :code:`'centered'`. At initialization, 
+:code:`layerThickEdgeNew` as the mean of :code:`layerThicknessNew` at
+neighboring cells. We do these locally rather than through a call to 
+:code:`ocn_diagnostic_solve_layerThicknessEdge`. For the Lagrangian
+:code:`layerThickEdgeMean` we use the existing solution from 
+:code:`ocn_diagnostic_solve_layerThicknessEdge`. This approach requires that
+:code:`config_thickness_flux_type` is :code:`'centered'`. At initialization, 
 we throw an error but do not terminate the run if 
 :code:`config_thickness_flux_type` is not :code:`'centered'` and VLR is active.
 
@@ -390,23 +375,24 @@ approach. Given the complexity of either of these implementation options, we
 leave this issue for future development.
 
 
-After determining the layer thicknesses to remap to, this routine makes calls to 
-the PPR library, one for velocity remapping and one for each active tracer. 
+After determining the layer thicknesses to remap to, the vertical layer
+interface locations are determined, :code:`heightCellNow`,
+:code:`heightCellNew`, :code:`heightEdgeNow`, :code:`heightEdgeNew`.
+These variables and the Lagrangian state variable are the inputs to the PPR
+routine :code:`rmap1d`, and the output is the remapped state variable. 
 
-*More details here*
 
 Some implementation considerations for PPR:
  
 - Error-checking in PPR: make consistent with MPAS errors, consider additional
-  error checks
-- *Add more here*
+  error checks. (Not implemented)
 
 After remapping, :code:`ocn_diagnostic_solve` is called. This is needed to 
 compute the density and pressure fields based on the remapped ocean state and
 the diagnostic field :code:`vertVelocityTop` which is the vertical velocity 
 through the top of the layer. This is only used as a diagnostic variable for 
-computing the MOC streamfunction. None of the mixing parameterizations require
-a vertical velocity (Eulerian or diasurface velocity).
+computing the MOC streamfunction and tracer budgets. None of the mixing
+parameterizations require a vertical velocity (Eulerian or diasurface velocity).
 
 Note: if `vertVelocityTop` is computed between regridding and remapping then it 
 can be computed as 
@@ -416,18 +402,22 @@ can be computed as
    vertVelocityTop(k) = vertVelocityTop(k+1) - div_hu(k) - 
                         (layerThickness(k,tlev=2) - layerThickness(k,tlev=1))/dt
 
-If `vertVelocityTop` is computed after remapping, then :code:`div_hu` is no
-longer appropriate as it has been remapped. In this case, the Lagrangian layer 
-thickness should be stored in a scratch variable and then the vertical velocity 
-through the top of the layer can be computed:
+In our implementation, `vertVelocityTop` is computed after remapping and
+:code:`div_hu` is no longer appropriate as it has been remapped. In this case,
+the Lagrangian layer thickness is stored in the state variable
+:code:`layerThicknessLag` and then the vertical velocity through the top of the
+layer is computed as:
 
 .. code::
 
-   layerThicknessALE = layerThickness(tlev=2)
+   layerThicknessLag = layerThickness(tlev=2)
    
    layerThickness(tlev=2) = layerThicknessTarget
    
-   vertVelocityTop = (layerThickness(tlev=2) - layerThicknessALE)/dt
+   vertVelocityTop = (layerThickness(tlev=2) - layerThicknessLag)/dt
+
+The function that performs this computation is
+:code:`ocn_diagnostic_solve_vertVel_remap`.
 
 If :code:`normalGMBolusVelocity` is computed based on the remapped ocean state 
 then the computation of :code:`vertTransportVelocityTop` and 
@@ -451,71 +441,71 @@ variables are :code:`mpas_ocn_layer_volume_weighted_averages` and
 Implementation: Grid is sufficiently conditioned for accuracy and stability
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
-After determining the target grid, perform the following steps:
+Since the grid is remapped back to z-star in the current implementation, we
+assume that the grid is sufficiently regular. 
 
-#. Optional: Assign :math:`h_k^{t+1}` to :math:`h_k^{lg}` if 
-   :math:`h_k^{t+1} - h_k^{lg}` is less than a minimum thickness alteration. 
-   This motivated by accuracy considerations, as each remapping may introduce 
-   errors. *Darren, would this improve PPR computational performance?*
-#. Apply minimum layer thickness criterion. 
+For future coordinate choices, consdider applying the following after
+determining the target grid:
 
-Smoothing layers in space and time is left for a future design document in 
-which we implement support for additional coordinate systems including hybrid 
-coordinates.
+#. Assign :math:`h_k^{t+1}` to :math:`h_k^{lg}` if :math:`h_k^{t+1} - h_k^{lg}`
+   is less than a minimum thickness alteration. This is motivated by accuracy
+   considerations, as each remapping may introduce errors. (Not implemented)
+#. Apply minimum layer thickness criterion. (Not implemented) 
+#. Smooth layers in space and time. (Not implemented)
 
 Namelist options:
 
 - Minimum layer thickness
-- Optional: minimum thickness change for remapping to occur
+- Minimum thickness change for remapping to occur
 
 
 Implementation: Ability to specify remapping method and its options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
 Namelist options:
 
-- frequency with which remapping should be performed (on which timestep)
-- order of the remapping
-- order of edge slope estimates
-- monotone limiter
-- boundary condition option
-- option to output some diagnostics?
-- *Some other remapping options here*
-
+- Order of remapping: 
+  :code:`advection, config_vert_remap_order = 1, 2, 3, or 5`
+- Interval number of timesteps for remapping: 
+  :code:`advection, config_vert_remap_interval = integer >= 0`
+- Slope limiter: 
+  :code:`advection, config_remap_limiter = 'none', 'monotonic', or 'weno'`
 
 Implementation: Support for existing time stepping schemes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
-:code:`vertAleTransportTop` is set to zero for both time stepping schemes from 
-:code:`ocn_vert_transport_velocity_top`.
-
-*Some details here about how to treat ALE_thickness*
+Currently, only the split-explicit time integration scheme is supported. We
+explored the RK4 implementation but it was not found to be stable.
 
 Implementation: performance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
-Options for improving performance:
+OMP calls were implemented for all cell loops in the remapping routine. Our
+main strategy for improving performance is remapping an interval of time steps
+rather than every time step. For EC60to30 global configurations, an interval of
+3-4 timesteps was found to not significantly degrade the solution.
 
-- Using the split-explicit scheme
+Options for improving performance (not implemented):
+
 - Splitting the scalar and momentum timesteps
 - Only remapping when the change in thickness exceeds given threshold
-- Optimizing/parallelizing PPR?
+- Optimizing/parallelizing PPR
 
 Implementation: no interference
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -534,13 +524,15 @@ timestep.
 Implementation: modularity
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
-Remapping operations (PPR) are performed in a separate routine. 
+Remapping operations (PPR) are performed in a separate routine, 
+:code:`ocn_vert_remap_state`. 
 
-Target grid levels should be determined in a separate routine.
+Target grid levels are determined in a separate routine,
+:code:`ocn_vert_regrid`.
 
 
 Testing
@@ -549,83 +541,41 @@ Testing
 Testing and Validation: Ability to perform vertical Lagrangian-remapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
 Ability to handle strong vertical velocities: 
 
-- baroclinic channel test case (?)
+- Baroclinic channel test case
 
 Evaluating spurious mixing due to remapping: Compare with and without VLR
 
 - Internal wave test case
-- Dense overflow test case
+- Baroclinic channel test case
 
-Tests for nightly regression suite:
-
-- *TBD*
-
-Testing and Validation: Grid is sufficiently conditioned for accuracy and stability
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Date last modified: 2020/12/15
-
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
-
-
-Testing and Validation: Support for existing time stepping schemes
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Date last modified: 2020/12/15
-
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
-
-Internal wave test case. Set the target grid equal both with and without VLR.
-
-Results from RK4 with and without VLR: 
-
-Results from split-explicit with and without VLR: 
 
 Testing and Validation: not climate changing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
-Global ocean test case (?)
+Global ocean case :code:`GMPAS-JRA1p4.TL319_EC30to60E2r2` 50 year run comparison
+between VLR branch with VLR on and master without remapping: 
+`Link to analysis <https://web.lcrc.anl.gov/public/e3sm/diagnostic_output/ac.cbegeman/scratch/anvil/mpas_analysis_output/20211020.GMPAS-JRA1p4.TL319_EC30to60E2r2.vlr.anvil.control/yrs46-50/>`_
 
 Testing and Validation: performance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Date last modified: 2020/12/15
+Date last modified: 2022/05/21
 
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
+Contributors: Carolyn Begeman, Darren Engwirda, Xylar Asay-Davis
 
-*Choose which test case(s) to evaluate performance with*
-
-Testing and Validation: conservation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Date last modified: 2020/12/15
-
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
-
-Tests of PPR alone and embedded.
-
-Vertical resolution convergence test: 
-
-Nightly regression suite test:
-
-- *TBD*
-
-Testing and Validation: no interference
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Date last modified: 2020/12/15
-
-Contributors: Darren Engwirda, Xylar Asay-Davis, Carolyn Begeman
-
-Temporarily set prognosticVariable(tlev=1) to unrealistic value after remapping 
-so that any errors due to interference will be detectable?
+For the same global ocean case above we show that remapping increases run time
+by 20% for remapping every time step and that it scales almost perfectly with as
+the remapping interval increases, i.e., 5% increase for remapping every 4 time
+steps. We also show that 90% of the remapping time is spent in the PPR routine
+:code:`rmap1d`, indicating that this would be the target for performance
+improvements.
