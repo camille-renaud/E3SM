@@ -38,13 +38,14 @@ module mpas_field_routines
    end interface
 
    interface mpas_mask_assign_pointer
+      module procedure mpas_mask_assign_pointer_field2d_mask2d_real
       ! TODO module procedure mpas_mask_assign_pointer_field3d_mask2d_real
-      module procedure mpas_mask_assign_pointer_field3d_mask3d_real
+      !module procedure mpas_mask_assign_pointer_field3d_mask3d_real
    end interface
-   interface mpas_mask_field
-      ! TODO module procedure mpas_mask_field3d_mask2d_real
-      module procedure mpas_mask_field3d_mask3d_real
-   end interface
+   !interface mpas_mask_field
+   !   ! TODO module procedure mpas_mask_field3d_mask2d_real
+   !   module procedure mpas_mask_field3d_mask3d_real
+   !end interface
 
    interface mpas_duplicate_field
       module procedure mpas_duplicate_field0d_real
@@ -2871,7 +2872,7 @@ module mpas_field_routines
 
 !***********************************************************************
 !
-!  routine mpas_mask_field3d_mask3d_real
+!  routine mpas_mask_assign_pointer_field2d_mask2d_real
 !
 !> \brief   MPAS 3D real field mask routine.
 !> \author  Carolyn Begeman, Adrian Turner
@@ -2880,7 +2881,7 @@ module mpas_field_routines
 !> Masks the source field using a masking array.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_mask_assign_pointer_field3d_mask3d_real(field, mask) !{{{
+   subroutine mpas_mask_assign_pointer_field2d_mask2d_real(field, mask) !{{{
 
       implicit none
 
@@ -2888,11 +2889,11 @@ module mpas_field_routines
       type (field3DInteger), intent(in), pointer :: mask
 
       integer :: i
-      integer, dimension(3) :: fieldDims
-      integer, dimension(3) :: maskDims
+      integer, dimension(2) :: fieldDims
+      integer, dimension(2) :: maskDims
 
-      character (len=StrKIND), dimension(3) :: fieldDimNames
-      character (len=StrKIND), dimension(3) :: maskDimNames
+      character (len=StrKIND), dimension(2) :: fieldDimNames
+      character (len=StrKIND), dimension(2) :: maskDimNames
 
       !if ( field % missingValue == null() ) then
       !   call mpas_log_write('Warning: no missingValue was provided for fieldName') ! TODO Replace field name iwth field name
@@ -2901,15 +2902,15 @@ module mpas_field_routines
       maskDims = mask % dimSizes
       maskDimNames = mask % dimNames
       ! TODO check that dimNames and dimSizes match
-      do i = 1, 3
+      do i = 1,2 
          if ( maskDimNames(i) .ne. fieldDimNames(i) ) then
             call mpas_log_write('Warning: dimension names do not match between masking and output arrays')
          endif
       enddo
 
-      field % missingValueMask3d => mask
+      field % missingValueMask2d => mask
 
-   end subroutine mpas_mask_assign_pointer_field3d_mask3d_real
+   end subroutine mpas_mask_assign_pointer_field2d_mask2d_real
 
 !***********************************************************************
 !
@@ -2922,38 +2923,80 @@ module mpas_field_routines
 !> Masks the source field using a masking array.
 !
 !-----------------------------------------------------------------------
-   subroutine mpas_mask_field3d_mask3d_real(field, mask, maskedField) !{{{
+!   subroutine mpas_mask_assign_pointer_field3d_mask3d_real(field, mask) !{{{
+!
+!      implicit none
+!
+!      type (field3DReal), intent(inout), pointer :: field
+!      type (field3DInteger), intent(in), pointer :: mask
+!
+!      integer :: i
+!      integer, dimension(3) :: fieldDims
+!      integer, dimension(3) :: maskDims
+!
+!      character (len=StrKIND), dimension(3) :: fieldDimNames
+!      character (len=StrKIND), dimension(3) :: maskDimNames
+!
+!      !if ( field % missingValue == null() ) then
+!      !   call mpas_log_write('Warning: no missingValue was provided for fieldName') ! TODO Replace field name iwth field name
+!      !   return
+!      !endif
+!      maskDims = mask % dimSizes
+!      maskDimNames = mask % dimNames
+!      ! TODO check that dimNames and dimSizes match
+!      do i = 1, 3
+!         if ( maskDimNames(i) .ne. fieldDimNames(i) ) then
+!            call mpas_log_write('Warning: dimension names do not match between masking and output arrays')
+!         endif
+!      enddo
+!
+!      field % missingValueMask3d => mask
+!
+!   end subroutine mpas_mask_assign_pointer_field3d_mask3d_real
 
-      implicit none
-
-      type (field3DReal), intent(in), pointer :: field !< Input/Output: Field to be masked
-
-      type (field3DInteger), intent(in), pointer :: mask
-
-      real (kind=RKIND), dimension(:,:,:), intent(out) :: maskedField !< Input/Output: Field to be masked
-      ! TODO consider whether this should be of field type or 3d real array
-      !type (field3DReal), intent(out) :: maskedField !< Input/Output: Field to be masked
-
-      real (kind=RKIND), dimension(:,:,:), pointer :: fieldArray
-
-      integer :: i
-      integer, dimension(3) :: fieldDims
-      integer, dimension(3) :: maskDims
-      integer, dimension(:,:,:), pointer :: maskArray
-
-      character (len=StrKIND), dimension(3) :: fieldDimNames
-      character (len=StrKIND), dimension(3) :: maskDimNames
-
-      fieldDims = field % dimSizes
-      fieldDimNames = field % dimNames
-      maskDims = mask % dimSizes
-      maskDimNames = mask % dimNames
-      ! real3d_temp is already allocated in mpas_io_streams
-      !allocate(maskedField(fieldDims(1),fieldDims(2),fieldDims(3)))
-
-      ! TODO use fieldDimNames to know how to transform the mask
-
-   end subroutine mpas_mask_field3d_mask3d_real !}}}
+!***********************************************************************
+!
+!  routine mpas_mask_field3d_mask3d_real
+!
+!> \brief   MPAS 3D real field mask routine.
+!> \author  Carolyn Begeman, Adrian Turner
+!> \date    05/17/22
+!> \details 
+!> Masks the source field using a masking array.
+!
+!-----------------------------------------------------------------------
+!   subroutine mpas_mask_field3d_mask3d_real(field, mask, maskedField) !{{{
+!
+!      implicit none
+!
+!      type (field3DReal), intent(in), pointer :: field !< Input/Output: Field to be masked
+!
+!      type (field3DInteger), intent(in), pointer :: mask
+!
+!      real (kind=RKIND), dimension(:,:,:), intent(out) :: maskedField !< Input/Output: Field to be masked
+!      ! TODO consider whether this should be of field type or 3d real array
+!      !type (field3DReal), intent(out) :: maskedField !< Input/Output: Field to be masked
+!
+!      real (kind=RKIND), dimension(:,:,:), pointer :: fieldArray
+!
+!      integer :: i
+!      integer, dimension(3) :: fieldDims
+!      integer, dimension(3) :: maskDims
+!      integer, dimension(:,:,:), pointer :: maskArray
+!
+!      character (len=StrKIND), dimension(3) :: fieldDimNames
+!      character (len=StrKIND), dimension(3) :: maskDimNames
+!
+!      fieldDims = field % dimSizes
+!      fieldDimNames = field % dimNames
+!      maskDims = mask % dimSizes
+!      maskDimNames = mask % dimNames
+!      ! real3d_temp is already allocated in mpas_io_streams
+!      !allocate(maskedField(fieldDims(1),fieldDims(2),fieldDims(3)))
+!
+!      ! TODO use fieldDimNames to know how to transform the mask
+!
+!   end subroutine mpas_mask_field3d_mask3d_real !}}}
 
 
 !***********************************************************************
