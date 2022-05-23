@@ -3679,6 +3679,8 @@ module mpas_io_streams
 
          else if (field_cursor % field_type == FIELD_3D_REAL) then
 
+            call mpas_log_write('Writing out field '//trim(field_cursor % real3dField % fieldName))
+
             if (field_cursor % real3dField % isVarArray) then
                ncons = size(field_cursor % real3dField % constituentNames)
                allocate(real2d_temp(field_cursor % real3dField % dimSizes(2), &
@@ -3723,8 +3725,10 @@ module mpas_io_streams
                   end do
                else
                   if (field_cursor % real3dField % isVarArray) then
+                     call mpas_log_write('... isVarArray, assigning real3d_temp')
                      real2d_temp(:,:) = field_cursor % real3dField % array(j,:,:)
                   else
+                     call mpas_log_write('... isVar, assigning real3d_temp')
                      real3d_temp(:,:,:) = field_cursor % real3dField % array(:,:,:)
                   end if
                end if
