@@ -221,14 +221,18 @@ contains
        !cullCell dam
        do iCell = 1, nCellsSolve
          cullCell(iCell)=0
-         if (xCell(iCell).ge.(config_dam_break_Xl-11.0_RKIND/4.0_RKIND*config_dam_break_dc) .AND.   &
-             xCell(iCell).le.(config_dam_break_Xl-5.0_RKIND/4.0_RKIND*config_dam_break_dc)) then
+         if (xCell(iCell).le.2.0_RKIND*config_dam_break_dc) then
+           write(log_string,*) 'cull dam xedge xCell,yCell = ',xCell(iCell),yCell(iCell)
+           call mpas_log_write(log_string)
+           cullCell(iCell)=1
+         endif
          !if (xCell(iCell).ge.config_dam_break_R0-2.0_RKIND*config_dam_break_dc) then
-           if ( yCell(iCell) .le. (0.5_RKIND*config_dam_break_Yl-0.5_RKIND*config_dam_break_Inlet) .OR.  &
-                yCell(iCell) .ge. (0.5_RKIND*config_dam_break_Yl+0.5_RKIND*config_dam_break_Inlet+config_dam_break_dc)) then
+         if (xCell(iCell).le.config_dam_break_Xl-5.0_RKIND/4.0_RKIND*config_dam_break_dc) then
            !if (yCell(iCell).le.(config_dam_break_R0-0.5_RKIND*config_dam_break_Yl-config_dam_break_dc) .or. &
            !  yCell(iCell).ge.(config_dam_break_R0+0.5_RKIND*config_dam_break_Yl+config_dam_break_dc)) then
-             write(log_string,*) 'cull dam xCell,yCell = ',xCell(iCell),yCell(iCell)
+           if (yCell(iCell).le.(2.0_RKIND*config_dam_break_dc) .or. &
+             yCell(iCell).ge.(yMax-2.0_RKIND*config_dam_break_dc)) then
+             write(log_string,*) 'cull dam yedge xCell,yCell = ',xCell(iCell),yCell(iCell)
              call mpas_log_write(log_string)
              cullCell(iCell)=1
            endif
@@ -236,17 +240,24 @@ contains
          !cullCell dam mouth
          !if (xCell(iCell).ge.(config_dam_break_R0-11.0_RKIND/4.0_RKIND*config_dam_break_dc) .AND.   &
          !  xCell(iCell).le.(config_dam_break_R0-5.0_RKIND/4.0_RKIND*config_dam_break_dc)) then
+         if (xCell(iCell).ge.(config_dam_break_Xl-11.0_RKIND/4.0_RKIND*config_dam_break_dc) .AND.   &
+             xCell(iCell).le.(config_dam_break_Xl-5.0_RKIND/4.0_RKIND*config_dam_break_dc)) then
          !  if ( yCell(iCell) .le.(config_dam_break_R0-0.5_RKIND*config_dam_break_Inlet) .OR.  &
          !    yCell(iCell) .ge. (config_dam_break_R0+0.5_RKIND*config_dam_break_Inlet+config_dam_break_dc)) then
-         !    write(log_string,*) 'cull dam mouth xCell,yCell = ',xCell(iCell),yCell(iCell)
-         !    call mpas_log_write(log_string)
-         !    cullCell(iCell)=1
-         !  endif
-         !endif
+           if ( yCell(iCell) .le. (0.5_RKIND*config_dam_break_Yl-0.5_RKIND*config_dam_break_Inlet) .OR.  &
+                yCell(iCell) .ge. (0.5_RKIND*config_dam_break_Yl+0.5_RKIND*config_dam_break_Inlet+config_dam_break_dc)) then
+             write(log_string,*) 'cull dam mouth xCell,yCell = ',xCell(iCell),yCell(iCell)
+             call mpas_log_write(log_string)
+             cullCell(iCell)=1
+           endif
+         endif
 
          !initial bathymetry
          bottomDepth(iCell) = config_dam_break_eta0
-         if (xCell(iCell).ge.(config_dam_break_R0-2.0_RKIND*config_dam_break_dc)) then
+         !if (xCell(iCell).ge.(config_dam_break_R0-2.0_RKIND*config_dam_break_dc)) then
+         if (xCell(iCell).le.(config_dam_break_Xl-5.0_RKIND/4.0_RKIND*config_dam_break_dc)) then
+           !write(log_string,*) 'dammed cell xCell,yCell = ',xCell(iCell),yCell(iCell)
+           !call mpas_log_write(log_string)
            ssh(iCell) = config_dam_break_eta0
          else
            ssh(iCell) = config_dam_break_vert_levels*config_drying_min_cell_height + eps
