@@ -186,7 +186,6 @@ module ocn_diagnostics_variables
    real (kind=RKIND), dimension(:), pointer :: betaEdge
    real (kind=RKIND), dimension(:), pointer :: RediHorizontalTaper, gmHorizontalTaper, RossbyRadius
    real (kind=RKIND), dimension(:), pointer :: RossbyRadiusDiag, RossbyRadiusCell 
-   real (kind=RKIND), dimension(:), pointer :: AvgKE, InstantaneousEKE
 
    ! Semi-implicit Array Pointers
    real (kind=RKIND), dimension(:), pointer :: SIvec_r0,SIvec_r00,SIvec_r1 ,SIvec_rh0,SIvec_rh1,SIvec_ph0,SIvec_ph1
@@ -467,10 +466,6 @@ contains
                    RossbyRadiusDiag)
          call mpas_pool_get_array(diagnosticsPool, 'RossbyRadiusCell', &
                    RossbyRadiusCell)
-         call mpas_pool_get_array(diagnosticsPool, 'AvgKE', &
-                   AvgKE)
-         call mpas_pool_get_array(diagnosticsPool, 'InstantaneousEKE', &
-                   InstantaneousEKE)
          
          call mpas_pool_get_array(diagnosticsPool, 'transportVelocityX', &
                    transportVelocityX)
