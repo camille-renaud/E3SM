@@ -234,7 +234,7 @@ contains
       ! in and out: vertVelocityTop
       call ocn_diagnostic_solve_vortVel(relativeVorticity, &
              layerThickEdgeFlux, normalVelocity, normalTransportVelocity, &
-             normalGMBolusVelocity, vertVelocityTop, vertTransportVelocityTop, &
+             normalGMBolusVelocity, layerThickness, vertVelocityTop, vertTransportVelocityTop, &
              vertGMBolusVelocityTop, relativeVorticityCell, divergence, &
              kineticEnergyCell, tangentialVelocity)
 
@@ -1481,7 +1481,7 @@ contains
 !-----------------------------------------------------------------------
    subroutine ocn_diagnostic_solve_vortVel(relativeVorticity, &
                 layerThicknessEdgeFlux, normalVelocity, normalTransportVelocity, &
-                normalGMBolusVelocity, vertVelocityTop, vertTransportVelocityTop, &
+                normalGMBolusVelocity, layerThickness, vertVelocityTop, vertTransportVelocityTop, &
                 vertGMBolusVelocityTop, relativeVorticityCell, divergence, &
                 kineticEnergyCell, tangentialVelocity)!{{{
 
@@ -1503,6 +1503,8 @@ contains
          normalTransportVelocity
       real (kind=RKIND), dimension(:,:), intent(in) :: &
          normalGMBolusVelocity
+      real (kind=RKIND), dimension(:,:), intent(in) :: &
+         layerThickness
 
       !-----------------------------------------------------------------
       !
@@ -1533,15 +1535,15 @@ contains
 
       integer :: nCells, nEdges
       integer :: iCell, iVertex, iEdge, cell1, cell2 
+      integer, dimension(:), pointer :: nEdgesArray
       integer :: i, j, k
       integer :: edgeSignOnCell_temp, eoe
       real(kind=RKIND) :: sum_hN, lt1, lt2
       real(kind=RKIND) :: c_mode1, resolution, dc_Lr
-      real(kind=RKIND), dimension(:), allocatable :: RossbyRadiusTaper
-      real(kind=RKIND), dimension(:, :), pointer :: layerThickness
       real(kind=RKIND) :: invAreaCell1
       real(kind=RKIND) :: dcEdge_temp, dvEdge_temp, r_tmp, weightsOnEdge_temp
 
+      real(kind=RKIND), dimension(:), allocatable :: RossbyRadiusTaper
       real (kind=RKIND), dimension(:), allocatable:: div_hu,div_huTransport,div_huGMBolus
 #ifdef MPAS_OPENACC
       !$acc declare device_resident(div_hu, div_huTransport, div_huGMBolus)
@@ -1675,6 +1677,9 @@ contains
       !$omp end parallel
 #endif
 
+      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
+      nEdges = nEdgesArray(3)
+      allocate (RossbyRadiusTaper(nEdges))
       !$omp parallel
       !$omp do schedule(runtime) private(k, cell1, cell2, sum_hN, lt1, lt2, c_mode1, resolution, dc_Lr)
       do iEdge = 1, nEdges
@@ -1724,6 +1729,7 @@ contains
       end do
       !$omp end do
       !$omp end parallel
+      deallocate (RossbyRadiusTaper)
 
    end subroutine ocn_diagnostic_solve_vortVel!}}}
 
