@@ -112,7 +112,8 @@ contains
 
       integer :: iEdge, iCell, iTracer
       integer :: err, nCells, nEdges, nVertices
-
+      integer, dimension(:), pointer :: nEdgesArray
+      
       real (kind=RKIND) :: coef_3rd_order, sum_hN, c_mode1, lt1, lt2, cell1, cell2
 
       real (kind=RKIND), dimension(:), pointer :: &
@@ -166,6 +167,7 @@ contains
          call mpas_pool_get_array(forcingPool, 'landIceFraction', landIceFraction)
       end if
 
+      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
       nEdges = nEdgesAll
       nCells = nCellsAll
       nVertices = nVerticesAll
@@ -234,7 +236,7 @@ contains
       ! in and out: vertVelocityTop
       call ocn_diagnostic_solve_vortVel(relativeVorticity, &
              layerThickEdgeFlux, normalVelocity, normalTransportVelocity, &
-             normalGMBolusVelocity, layerThickness, vertVelocityTop, vertTransportVelocityTop, &
+             normalGMBolusVelocity, layerThickness, nEdgesArray(3), vertVelocityTop, vertTransportVelocityTop, &
              vertGMBolusVelocityTop, relativeVorticityCell, divergence, &
              kineticEnergyCell, tangentialVelocity)
 
@@ -1481,7 +1483,7 @@ contains
 !-----------------------------------------------------------------------
    subroutine ocn_diagnostic_solve_vortVel(relativeVorticity, &
                 layerThicknessEdgeFlux, normalVelocity, normalTransportVelocity, &
-                normalGMBolusVelocity, layerThickness, vertVelocityTop, vertTransportVelocityTop, &
+                normalGMBolusVelocity, layerThickness, nEdges1, vertVelocityTop, vertTransportVelocityTop, &
                 vertGMBolusVelocityTop, relativeVorticityCell, divergence, &
                 kineticEnergyCell, tangentialVelocity)!{{{
 
@@ -1505,7 +1507,8 @@ contains
          normalGMBolusVelocity
       real (kind=RKIND), dimension(:,:), intent(in) :: &
          layerThickness
-
+      integer, dimension(:), intent(in) :: &
+         nEdges1
       !-----------------------------------------------------------------
       !
       ! output variables
@@ -1535,7 +1538,6 @@ contains
 
       integer :: nCells, nEdges
       integer :: iCell, iVertex, iEdge, cell1, cell2 
-      integer, dimension(:), pointer :: nEdgesArray
       integer :: i, j, k
       integer :: edgeSignOnCell_temp, eoe
       real(kind=RKIND) :: sum_hN, lt1, lt2
@@ -1677,12 +1679,10 @@ contains
       !$omp end parallel
 #endif
 
-      call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
-      nEdges = nEdgesArray(3)
-      allocate (RossbyRadiusTaper(nEdges))
+      allocate (RossbyRadiusTaper(nEdges1))
       !$omp parallel
       !$omp do schedule(runtime) private(k, cell1, cell2, sum_hN, lt1, lt2, c_mode1, resolution, dc_Lr)
-      do iEdge = 1, nEdges
+      do iEdge = 1, nEdges1
          cell1 = cellsOnEdge(1, iEdge)
          cell2 = cellsOnEdge(2, iEdge)
          sum_hN = 0.0
