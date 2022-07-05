@@ -1532,9 +1532,13 @@ contains
       !-----------------------------------------------------------------
 
       integer :: nCells, nEdges
-      integer :: iCell, iVertex, iEdge
+      integer :: iCell, iVertex, iEdge, cell1, cell2 
       integer :: i, j, k
       integer :: edgeSignOnCell_temp, eoe
+      real(kind=RKIND) :: sum_hN, lt1, lt2
+      real(kind=RKIND) :: c_mode1, resolution, dc_Lr
+      real(kind=RKIND), dimension(:), allocatable :: RossbyRadiusTaper
+      real(kind=RKIND), dimension(:, :), pointer :: layerThickness
       real(kind=RKIND) :: invAreaCell1
       real(kind=RKIND) :: dcEdge_temp, dvEdge_temp, r_tmp, weightsOnEdge_temp
 
