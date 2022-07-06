@@ -110,8 +110,8 @@ contains
       integer, intent(in), optional :: timeLevelIn !< Input: Time level in state
       logical, intent(in), optional :: full   !< Input: Run all computations?
 
-      integer :: iEdge, iCell, iTracer
-      integer :: err, nCells, nEdges, nVertices
+      integer :: iEdge, jEdge, iCell, iTracer
+      integer :: err, nCells, nEdges, nVertices, nEdges1
       integer, dimension(:), pointer :: nEdgesArray
       
       real (kind=RKIND) :: coef_3rd_order, sum_hN, c_mode1, lt1, lt2, cell1, cell2
@@ -168,6 +168,8 @@ contains
       end if
 
       call mpas_pool_get_dimension(meshPool, 'nEdgesArray', nEdgesArray)
+      nEdges1 = nEdgesArray(3)
+
       nEdges = nEdgesAll
       nCells = nCellsAll
       nVertices = nVerticesAll
@@ -236,10 +238,16 @@ contains
       ! in and out: vertVelocityTop
       call ocn_diagnostic_solve_vortVel(relativeVorticity, &
              layerThickEdgeFlux, normalVelocity, normalTransportVelocity, &
-             normalGMBolusVelocity, layerThickness, nEdgesArray(3), vertVelocityTop, vertTransportVelocityTop, &
+             normalGMBolusVelocity, layerThickness, nEdges1, vertVelocityTop, vertTransportVelocityTop, &
              vertGMBolusVelocityTop, relativeVorticityCell, divergence, &
              kineticEnergyCell, tangentialVelocity)
 
+
+      ! inputs: meshPool, layerThickness, nEdges1
+      ! outputs: RossbyRadiusCell
+      call ocn_diagnostic_solve_EKENN(meshPool, layerThickness, nEdges1, RossbyRadiusCell)
+      
+      
       !
       ! Compute kinetic energy
       !
@@ -1507,8 +1515,7 @@ contains
          normalGMBolusVelocity
       real (kind=RKIND), dimension(:,:), intent(in) :: &
          layerThickness
-      integer, dimension(:), intent(in) :: &
-         nEdges1
+      integer :: nEdges1
       !-----------------------------------------------------------------
       !
       ! output variables
@@ -1715,6 +1722,7 @@ contains
 
          dc_Lr = dcEdge(iEdge)/RossbyRadiusDiag(iEdge)
 
+
          ! Ramp the parameterization between the given min and max values
          ! of the ratio of the cell width to the Rossby radius
          if (dc_Lr <= config_GMRedi_Rossby_ramp_min) then
@@ -1732,6 +1740,134 @@ contains
       deallocate (RossbyRadiusTaper)
 
    end subroutine ocn_diagnostic_solve_vortVel!}}}
+
+
+!***********************************************************************
+!
+!  routine ocn_diagnostic_solve_EKENN
+!
+!> \brief   Computes diagnostic variables for RossbyRadiusCell and instantaneous EKE
+!> \author  Camille Renaud
+!> \date    July 2022
+!> \details
+!>  This routine computes diagnostic variables for RossbyRadiusCell and 
+!>  instantaneousEKE for ML+SmartSim project
+!
+!-----------------------------------------------------------------------
+   subroutine ocn_diagnostic_solve_EKENN(meshPool, layerThickness, nEdges1, RossbyRadiusCell)!{{{
+
+      implicit none
+
+      !-----------------------------------------------------------------
+      !
+      ! input variables
+      !
+      !-----------------------------------------------------------------
+
+      type (mpas_pool_type), intent(in) :: meshPool !< Input: mesh information
+      real (kind=RKIND), dimension(:,:), intent(in) :: &
+         layerThickness
+      integer :: nEdges1
+
+      !-----------------------------------------------------------------
+      !
+      ! output variables
+      !
+      !-----------------------------------------------------------------
+
+      real (kind=RKIND), dimension(:), intent(out) :: &
+         RossbyRadiusCell
+
+      !-----------------------------------------------------------------
+      !
+      ! local variables
+      !
+      !-----------------------------------------------------------------
+
+      integer :: nCells, nEdges
+      integer :: iCell, iVertex, iEdge, jEdge, cell1, cell2 
+      integer :: i, j, k
+      !integer :: edgeSignOnCell_temp, eoe
+      real(kind=RKIND) :: sum_hN, lt1, lt2
+      real(kind=RKIND) :: c_mode1     !, resolution   , dc_Lr
+      real(kind=RKIND) :: invAreaCell1
+
+      !real(kind=RKIND), dimension(:), allocatable :: RossbyRadiusTaper
+
+      !------------------------------------------------------------------
+
+
+      ! Computing RossbyRadius without the GM package on
+      allocate (RossbyRadiusTaper(nEdges1))
+      !$omp parallel
+      !$omp do schedule(runtime) private(k, cell1, cell2, sum_hN, lt1, lt2, c_mode1)
+      do iEdge = 1, nEdges1
+         cell1 = cellsOnEdge(1, iEdge)
+         cell2 = cellsOnEdge(2, iEdge)
+         sum_hN = 0.0
+
+         do k = minLevelEdgeBot(iEdge)+1, maxLevelEdgeTop(iEdge)-1
+
+            lt1 = 0.5_RKIND*(layerThickness(k,cell1) + layerThickness(k-1,cell1))
+            lt2 = 0.5_RKIND*(layerThickness(k,cell2) + layerThickness(k-1,cell2))
+            sum_hN = sum_hN + 0.5_RKIND*(lt1*sqrt(max(BruntVaisalaFreqTop(k,cell1),0.0_RKIND)) + &
+                            lt2*sqrt(max(BruntVaisalaFreqTop(k,cell2),0.0_RKIND)))
+         end do
+
+         ! See Chelton (1998)
+         ! https://journals.ametsoc.org/view/journals/phoc/28/3/1520-0485_1998_028_0433_gvotfb_2.0.co_2.xml
+         ! eqn 2.2a, also Appendix A,
+         ! for the first-mode (m=1) baroclinic gravity wave speed in m/s
+         ! c_m = 1/pi integral(N dz )
+
+         c_mode1 = max(1.0E-5_RKIND, sum_hN/3.141592_RKIND)
+
+         ! See Hallberg (2013) https://doi.org/10.1016/j.ocemod.2013.08.007
+         ! just after eqn 4 the defines the deformation
+         ! radius as:
+         ! L = sqrt( c_g^2/ ( f^2 + 2*beta*c_g) )
+         !   = c_g * sqrt(1/( f^2 + 2*beta*c_g) )  (note c_g is guaranteed non-negative)
+         ! This comes from a combination of Chelton (1998) eqns 2.3a and
+         ! 2.3b, with a smooth transition in between.
+         RossbyRadiusDiag(iEdge) = c_mode1*sqrt( 1.0_RKIND / &
+            (fEdge(iEdge)*fEdge(iEdge) + 2.0_RKIND*betaEdge(iEdge)*c_mode1 + 1.0E-15_RKIND))
+
+      !   dc_Lr = dcEdge(iEdge)/RossbyRadiusDiag(iEdge)
+
+      !   ! Ramp the parameterization between the given min and max values
+      !   ! of the ratio of the cell width to the Rossby radius
+      !   if (dc_Lr <= config_GMRedi_Rossby_ramp_min) then
+      !      RossbyRadiusTaper(iEdge) = 0.0_RKIND
+      !   else if (dc_Lr >= config_GMRedi_Rossby_ramp_max) then
+      !      RossbyRadiusTaper(iEdge) = 1.0_RKIND
+      !   else
+      !      ! a linear ramp between the min and max of dc_Lr
+      !      RossbyRadiusTaper(iEdge) = (dc_Lr - config_GMRedi_Rossby_ramp_min) / &
+      !         (config_GMRedi_Rossby_ramp_max - config_GMRedi_Rossby_ramp_min)
+      !   end if
+      
+      end do
+
+ 
+      ! Averaging RossbyRadiusDiag over cells to make RossbyRadiusCell
+      do iCell = 1, nCells
+          RossbyRadiusCell(iCell) = 0.0_RKIND
+          invAreaCell1 = invAreaCell(iCell)
+          do iEdge = 1, nEdgesOnCell(iCell)
+              jEdge = edgesOnCell(iEdge, iCell)
+              RossbyRadiusCell(iCell) = RossbyRadiusCell(iCell) + RossbyRadiusDiag(jEdge)
+          RossbyRadiusCell(iCell) = RossbyRadiusCell(iCell) / nEdgesOnCell(iCell)
+          end do
+      end do
+
+      !$omp end do
+      !$omp end parallel
+     
+      deallocate (RossbyRadiusTaper)
+
+   end subroutine ocn_diagnostic_solve_EKENN!}}}
+
+
 
 !***********************************************************************
 !
