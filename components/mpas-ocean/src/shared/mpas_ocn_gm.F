@@ -864,6 +864,27 @@ contains
          deallocate (tridiagB)
          deallocate (tridiagC)
 
+         if (config_prognostic_meke) then
+            !$omp parallel
+            !$omp do schedule(runtime) private(k, cell1, cell2, BruntVaisalaFreqTopEdge)
+            do iEdge = 1, nEdges
+
+               mekeSourceTopOfEdge(:, iEdge) = 0.0_RKIND
+               cell1 = cellsOnEdge(1, iEdge)
+               cell2 = cellsOnEdge(2, iEdge)
+
+               do k = minLevelEdgeBot(iEdge), maxLevelEdgeTop(iEdge)
+                  BruntVaisalaFreqTopEdge = 0.5_RKIND*(BruntVaisalaFreqTop(k, cell1) + BruntVaisalaFreqTop(k, cell2))
+                  BruntVaisalaFreqTopEdge = max(BruntVaisalaFreqTopEdge, 0.0_RKIND)
+                  mekeSourceTopOfEdge(k, iEdge) = gmBolusKappa(iEdge)*gmKappaScaling(k,iEdge)* &
+                                                  gradDensityConstZTopOfEdge(k,iEdge)/ &
+                                                  BruntVaisalaFreqTopEdge 
+               end do
+            end do
+            !$omp end do
+            !$omp end parallel
+         end if
+
       end if !end config_use_GM
       deallocate(gradDensityEdge, &
               dDensityDzTopOfCell, &
