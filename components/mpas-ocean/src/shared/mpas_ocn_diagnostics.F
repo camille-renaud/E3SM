@@ -1730,7 +1730,9 @@ contains
                (config_GMRedi_Rossby_ramp_max - config_GMRedi_Rossby_ramp_min)
          end if
       end do
-
+      !$omp end do
+      !$omp end parallel
+      deallocate (RossbyRadiusTaper)
 
       ! Averaging RossbyRadiusDiag over cells to make RossbyRadiusCell
       do iCell = 1, nCells
@@ -1741,9 +1743,6 @@ contains
           end do    
           RossbyRadiusCell(iCell) = RossbyRadiusCell(iCell) / nEdgesOnCell(iCell)
       end do
-      !$omp end do
-      !$omp end parallel
-      deallocate (RossbyRadiusTaper)
 
    end subroutine ocn_diagnostic_solve_vortVel!}}}
 
